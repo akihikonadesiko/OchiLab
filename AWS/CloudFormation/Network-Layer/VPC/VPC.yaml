@@ -1,0 +1,530 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: OIDCmob create VPC.
+
+Parameters:
+  Environment:
+    Description: Type of this environment.
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - stage
+      - prod
+
+
+Mappings:
+  Common:
+    CIDR:
+      VPC: "10.0.0.0/16"
+      PublicSubnetA: "10.0.1.0/24"
+      PublicSubnetC: "10.0.2.0/24"
+      PrivateSubnetAInstance: "10.0.11.0/24"
+      PrivateSubnetCInstance: "10.0.12.0/24"
+      PrivateSubnetAData: "10.0.21.0/24"
+      PrivateSubnetCData: "10.0.22.0/24"
+      PrivateSubnetALambda: "10.0.31.0/24"
+      PrivateSubnetCLambda: "10.0.32.0/24"
+  dev:
+    ElasticIP:
+      SubnetA: eipalloc-hogehoge
+      SubnetC: eipalloc-hogehoge
+  stage:
+    ElasticIP:
+      SubnetA: eipalloc-hogehoge
+      SubnetC: eipalloc-hogehoge
+  prod:
+    ElasticIP:
+      SubnetA: eipalloc-hogehoge
+      SubnetC: eipalloc-hogehoge
+
+
+Resources:
+# ------------------------------------------------------------#
+# Virtual Private Network
+# ------------------------------------------------------------#
+  VpcMain:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !FindInMap [ Common, CIDR, VPC ]
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: Main-VPC
+
+
+# ------------------------------------------------------------#
+#  InternetGateway
+# ------------------------------------------------------------#
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: Main-VPC-IGW
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VpcMain
+
+
+# ------------------------------------------------------------#
+# Subnet
+# ------------------------------------------------------------#
+# Public Subnet(AZ-a)
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VpcMain
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Sub ${AWS::Region}
+      CidrBlock: !FindInMap [ Common, CIDR, PublicSubnetA ]
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: Public-AZ-a
+        - Key: NETWORK
+          Value: public
+        - Key: REGION
+          Value: !Sub ${AWS::Region}
+        - Key: AZ
+          Value: !Select
+            - 0
+            - Fn::GetAZs: !Sub ${AWS::Region}
+
+# Public Subnet(AZ-c)
+  PublicSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VpcMain
+      AvailabilityZone: !Select
+        - 2
+        - Fn::GetAZs: !Sub ${AWS::Region}
+      CidrBlock: !FindInMap [ !Ref Env, CIDR, PublicSubnetC ]
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: Public-AZ-c
+        - Key: NETWORK
+          Value: public
+        - Key: REGION
+          Value: !Sub ${AWS::Region}
+        - Key: AZ
+          Value: !Select
+            - 2
+            - Fn::GetAZs: !Sub ${AWS::Region}
+
+# Private Subnet for Instance(AZ-a)
+  PrivateSubnetAInstance:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VpcMain
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Sub ${AWS::Region}
+      CidrBlock: !FindInMap [ Common, CIDR, PrivateSubnetAInstance ]
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: Private-Instance-AZ-a
+        - Key: NETWORK
+          Value: private
+        - Key: REGION
+          Value: !Sub ${AWS::Region}
+        - Key: AZ
+          Value: !Select
+            - 0
+            - Fn::GetAZs: !Sub ${AWS::Region}
+
+# Private Subnet for Instance(AZ-c)
+  PrivateSubnetCInstance:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VpcMain
+      AvailabilityZone: !Select
+        - 2
+        - Fn::GetAZs: !Sub ${AWS::Region}
+      CidrBlock: !FindInMap [ Common, CIDR, PrivateSubnetAInstance ]
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: Private-Instance-AZ-c
+        - Key: NETWORK
+          Value: private
+        - Key: REGION
+          Value: !Sub ${AWS::Region}
+        - Key: AZ
+          Value: !Select
+            - 2
+            - Fn::GetAZs: !Sub ${AWS::Region}
+
+# Private Subnet for DATA(AZ-a)
+  PrivateSubnetAData:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VpcMain
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Sub ${AWS::Region}
+      CidrBlock: !FindInMap [ Common, CIDR, PrivateSubnetAData ]
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: Private-DATA-AZ-a
+        - Key: NETWORK
+          Value: private
+        - Key: REGION
+          Value: !Sub ${AWS::Region}
+        - Key: AZ
+          Value: !Select
+            - 0
+            - Fn::GetAZs: !Sub ${AWS::Region}
+
+# Private Subnet for DATA(AZ-c)
+  PrivateSubnetCData:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VpcMain
+      AvailabilityZone: !Select
+        - 2
+        - Fn::GetAZs: !Sub ${AWS::Region}
+      CidrBlock: !FindInMap [ Common, CIDR, PrivateSubnetCData ]
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: Private-DATA-AZ-c
+        - Key: NETWORK
+          Value: private
+        - Key: REGION
+          Value: !Sub ${AWS::Region}
+        - Key: AZ
+          Value: !Select
+            - 2
+            - Fn::GetAZs: !Sub ${AWS::Region}
+
+# Private Subnet for Lambda(AZ-a)
+  PrivateSubnetALambda:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VpcMain
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Sub ${AWS::Region}
+      CidrBlock: !FindInMap [ Common, CIDR, PrivateSubnetALambda ]
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: Private-Lambda-AZ-a
+        - Key: NETWORK
+          Value: private
+        - Key: REGION
+          Value: !Sub ${AWS::Region}
+        - Key: AZ
+          Value: !Select
+            - 0
+            - Fn::GetAZs: !Sub ${AWS::Region}
+
+# Private Subnet for Lambda(AZ-c)
+  PrivateSubnetCLambda:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VpcMain
+      AvailabilityZone: !Select
+        - 2
+        - Fn::GetAZs: !Sub ${AWS::Region}
+      CidrBlock: !FindInMap [ Common, CIDR, PrivateSubnetALambda ]
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: Private-Lambda-AZ-c
+        - Key: NETWORK
+          Value: private
+        - Key: REGION
+          Value: !Sub ${AWS::Region}
+        - Key: AZ
+          Value: !Select
+            - 2s
+            - Fn::GetAZs: !Sub ${AWS::Region}
+
+
+# ------------------------------------------------------------#
+# Route Table
+# ------------------------------------------------------------#
+# RouteTable for Public Subnet
+  RouteTableForPublicSubnet:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VpcMain
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: PublicSubnet
+        - Key: NETWORK
+          Value: public
+  SubnetRouteTableAssociationPublicSubnetA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref RouteTableForPublicSubnet
+  SubnetRouteTableAssociationPublicSubnetC:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetC
+      RouteTableId: !Ref RouteTableForPublicSubnet
+
+# RouteTable for Private Subnet Instance
+  RouteTableForPrivateSubnetInstance:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VpcMain
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: PrivateSubnetInstance
+        - Key: NETWORK
+          Value: private
+  SubnetRouteTableAssociationPrivateSubnetAInstance:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetAInstance
+      RouteTableId: !Ref RouteTableForPrivateSubnetInstance
+  SubnetRouteTableAssociationPrivateSubnetCInstance:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetCInstance
+      RouteTableId: !Ref RouteTableForPrivateSubnetInstance
+
+# RouteTable for Private Subnet Data
+  RouteTableForPrivateSubnetData:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VpcMain
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: PrivateSubnetData
+        - Key: NETWORK
+          Value: private
+  SubnetRouteTableAssociationPrivateSubnetAData:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetAData
+      RouteTableId: !Ref RouteTableForPrivateSubnetData
+  SubnetRouteTableAssociationPrivateSubnetCData:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetCData
+      RouteTableId: !Ref RouteTableForPrivateSubnetData
+
+# RouteTable for Private Subnet Data
+  RouteTableForPrivateSubnetLambda:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VpcMain
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: PrivateSubnetLambda
+        - Key: NETWORK
+          Value: private
+  SubnetRouteTableAssociationPrivateSubnetALambda:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetALambda
+      RouteTableId: !Ref RouteTableForPrivateSubnetLambda
+  SubnetRouteTableAssociationPrivateSubnetCLambda:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetCLambda
+      RouteTableId: !Ref RouteTableForPrivateSubnetLambda
+
+# ------------------------------------------------------------#
+# Routing
+# ------------------------------------------------------------#
+# Internet Gateway
+  RoutePublicSubnet:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTableForPublicSubnet
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref InternetGateway
+
+# NAT Gateway
+  RoutePrivateSubnetInstanceA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTableForPrivateSubnetInstance
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NATGatewayA
+  RoutePrivateSubnetInstanceC:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTableForPrivateSubnetInstance
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NATGatewayC
+
+  RoutePrivateSubnetDataA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTableForPrivateSubnetData
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NATGatewayA
+  RoutePrivateSubnetDataC:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTableForPrivateSubnetData
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NATGatewayC
+
+  RoutePrivateSubnetLambdaA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTableForPrivateSubnetLambda
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NATGatewayA
+  RoutePrivateSubnetLambdaC:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTableForPrivateSubnetLambda
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NATGatewayC
+
+# ------------------------------------------------------------#
+# NAT Gateway
+# ------------------------------------------------------------#
+  NATGatewayA:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !FindInMap [ !Ref Environment, ElasticIP, SubnetA ]
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: PublicSubnet-AZ-a
+        - Key: NETWORK
+          Value: public
+        - Key: REGION
+          Value: !Sub ${AWS::Region}
+        - Key: AZ
+          Value: !Select
+            - 0
+            - Fn::GetAZs: !Sub ${AWS::Region}
+
+  NATGatewayC:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !FindInMap [ !Ref Environment, ElasticIP, SubnetC ]
+      SubnetId: !Ref PublicSubnetC
+      Tags:
+        - Key: ENV
+          Value: !Sub ${Environment}
+        - Key: FUNCTION
+          Value: network
+        - Key: Name
+          Value: PublicSubnet-AZ-c
+        - Key: NETWORK
+          Value: public
+        - Key: REGION
+          Value: !Sub ${AWS::Region}
+        - Key: AZ
+          Value: !Select
+            - 2
+            - Fn::GetAZs: !Sub ${AWS::Region}
+
+
+Outputs:
+  IdVpcMain:
+    Value: !Ref VpcMain
+    Export:
+      Name: Id-Vpc
+
+  IdPublicSubnetA:
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: Id-Subnet-Public-A
+
+  IdPublicSubnetC:
+    Value: !Ref PublicSubnetC
+    Export:
+      Name: Id-Subnet-Public-C
+
+  IdPrivateSubnetAInstance:
+    Value: !Ref PrivateSubnetAInstance
+    Export:
+      Name: Id-Subnet-Private-A-Instance
+
+  IdPrivateSubnetCInstance:
+    Value: !Ref PrivateSubnetCInstance
+    Export:
+      Name: Id-Subnet-Private-C-Instance
+
+  IdPrivateSubnetAData:
+    Value: !Ref PrivateSubnetAData
+    Export:
+      Name: Id-Subnet-Private-A-Data
+
+  IdPrivateSubnetCData:
+    Value: !Ref PrivateSubnetCData
+    Export:
+      Name: Id-Subnet-Private-C-Data
+
+  IdPrivateSubnetALambda:
+    Value: !Ref PrivateSubnetALambda
+    Export:
+      Name: Id-Subnet-Private-A-Lambda
+
+  IdPrivateSubnetCLambda:
+    Value: !Ref PrivateSubnetCLambda
+    Export:
+      Name: Id-Subnet-Private-C-Lambda
